@@ -1,8 +1,17 @@
 var express = require('express');
 var bodyParser = require('body-parser');
-
+var knex = require('knex')({
+    client: 'pg',
+    connection: {
+        database: 'knex-app'
+    },
+});
 var app = express();
 app.use(bodyParser.json());
+
+
+
+
 
 /* table structure
 
@@ -39,6 +48,49 @@ POST
      "tags": ["curry", "vegetarian"]
  }
  */
+
+// knex.insert({
+//     name: 'Khichidi Kadhi',
+//     description: 'Rice and lentils with a yoghurt gravy'
+// }).into('recipes').then();
+
+
+app.post('/recipes', (req, res) => {
+    var body = req.body;
+    knex.insert({
+        name: body.name
+    }).returning('id').into('recipes')
+    .then((id) =>{
+        return Promise.all(body.steps.map(step => {
+           knex.insert({
+            recipes_id: id.toString(),
+            steps: step
+        }).into('steps').then(); 
+        }));
+    })
+    .then(results => {
+
+    }).catch(err => {
+        console.error(err, 'this is catch');
+    });
+    
+
+    
+    /* insert new recipe & get id number back
+       insert steps with reference to recipe id
+       insert tags to tags table
+          if (tag !exsists then add)
+          else(dont)
+       insert recipe id and tag id into recipe-tags 
+       
+    */
+    res.status(200).json({message: 'it works'})  
+})
+
+
+app.get('/recipes', (req, res) => {
+
+})
 
 
 /*
