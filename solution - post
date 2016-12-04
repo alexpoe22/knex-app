@@ -1,0 +1,43 @@
+app.post('/recipes', jsonParser, function(request, response) {
+  function createRecipeTag(recipeId, tagId) {
+    return knex
+      .insert({ 'recipe_id': recipeId, 'tag_id': tagId })
+      .into('recipes_tags');
+  }
+
+  const data = request.body;
+
+  knex.insert({ name: data.name }).into('recipes').returning('id')
+    .then((recipeIds) => {
+      const recipeId = recipeIds[0];
+
+      const stepPromises = data.steps.map(step => {
+        return knex.insert({ instructions: step, 'recipe_id': recipeId }).into('steps');
+      });
+
+      const tagPromises = data.tags.map(tagName => {
+        knex
+          .select('id')
+          .from('tags')
+          .where({ name: tagName })
+          .then((tags) => {
+            if (tags.length > 0) {
+              return createRecipeTag(recipeId, tags[0].id)
+            } else {
+              return knex
+                .insert({ 'name': tagName })
+                .into('tags')
+                .returning('id')
+                .then((tagIds) => {
+                  return createRecipeTag(recipeId, tagIds[0]);
+                });
+            }
+          });
+      });
+
+      const allPromises = stepPromises.concat(tagPromises);
+      return Promise.all(allPromises);
+    }).then(() => {
+      return response.status(201).json({});
+    });
+});

@@ -1,0 +1,29 @@
+app.get('/recipes', function(request, response) {
+  knex
+    .select('*')
+    .from('recipes')
+    .then(recipes => {
+      const recipePromises = recipes.map(recipe => {
+        const stepsPromise = knex
+          .select('*')
+          .from('steps')
+          .where({ 'recipe_id': recipe.id });
+
+        const tagsPromise = knex
+          .select('*')
+          .from('recipes_tags')
+          .where({ 'recipe_id': recipe.id })
+          .join('tags', 'recipes_tags.tag_id', 'tags.id');
+
+        return Promise.all([ stepsPromise, tagsPromise ])
+          .then(result => {
+            recipe.steps = result[0].map(step => { return step.instructions });
+            recipe.tags = result[1].map(tag => { return tag.name });
+          });
+      });
+
+      Promise.all(recipePromises).then(() => {
+        return response.status(200).json(recipes);
+      });
+    });
+});
